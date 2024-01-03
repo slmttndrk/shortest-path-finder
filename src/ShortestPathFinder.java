@@ -1,9 +1,15 @@
+import javax.sound.midi.Soundbank;
 import java.time.temporal.JulianFields;
 import java.util.*;
 
 public class ShortestPathFinder {
     public static void main(String[] args) {
-        System.out.println("Welcome to find shortest path between Dutch cities. \n");
+        // check command line arguments
+        if (args.length < 2) { printWelcomeText(); return; }
+
+        // parse arguments
+        String source = args[0];
+        String destination = args[1];
 
         // create a Graph to store cities and their relative distances
         CityGraph cities = new CityGraph();
@@ -12,23 +18,45 @@ public class ShortestPathFinder {
         fillGraph(cities);
         // cities.printCityGraph();
 
-        //TODO Implement Dijkstra's shortest path
-        String source = "Amsterdam";
-        String destination = "Maastricht";
-        ArrayList<TableEntry> citiesOnPath = findShortestPath(source, cities);
-        printShortestPath(source, destination, citiesOnPath);
+        // validate source and destination cities
+        if (!cities.getCities().contains(source) || !cities.getCities().contains(destination)) {
+            System.out.println("Please enter valid source and/or destination!");
+            return;
+        }
 
-        //TODO Add welcome text to navigate users
+        // find the shortest path from the source city
+        ArrayList<TableEntry> citiesOnPath = findShortestPath(source, cities);
+
+        // print the path from source to destination
+        printShortestPath(source, destination, citiesOnPath);
+    }
+
+    private static void printWelcomeText()
+    {
+        System.out.println("Welcome to find shortest path between Dutch cities shown below:\n");
+
+        System.out.println("Amsterdam\n" + "Utrecht\n" + "Groningen\n" + "Haarlem\n" + "Arnhem\n" + "'s-Hertogenbosch\n"
+                + "Maastricht\n" + "Zwolle\n" + "Leeuwarden\n" + "Lelystad\n" + "Assen\n" + "Middelburg\n");
+
+        System.out.println("Please give source(i.e. Amsterdam) and destination(i.e. Maastricht) " +
+                "as command line arguments!\n");
+
+        System.out.println("Example: \njava .\\ShortestPathFinder.java Amsterdam Maastricht\n");
     }
 
     private static void printShortestPath(String src, String dst, ArrayList<TableEntry> citiesOnPath)
     {
-        System.out.println("The shortest path is:");
-        int totalDistance = 0;
+        // check if source and destination is same
+        if (src.equals(dst)) {
+            System.out.println("\nTotal distance is 0 km since source and destination are same.\n");
+            return;
+        }
+
         String result = dst;
-
-
+        int totalDistance = 0;
         boolean isFound = false;
+
+        // loop over distance table to build the path
         while (!isFound)
         {
             for (TableEntry te : citiesOnPath)
@@ -38,28 +66,25 @@ public class ShortestPathFinder {
                     dst = te.getPreviousCity();
                     result = te.getPreviousCity() + " -> " +  result;
 
-                    if (totalDistance == 0)
-                        totalDistance = te.getShortestDistanceFromSource();
+                    if (totalDistance == 0) { totalDistance = te.getShortestDistanceFromSource(); }
 
-                    if (dst.equals(src))
-                    {
-                        isFound = true;
-                    }
+                    if (dst.equals(src)) { isFound = true; }
+
                     break;
                 }
             }
         }
 
-        System.out.println(result);
-        System.out.println("\nTotal distance is:\n" + totalDistance);
+        System.out.println("\nThe shortest path is:\n" + result);
+        System.out.println("\nTotal distance is:\n" + totalDistance + " km");
     }
 
     private static ArrayList<TableEntry> findShortestPath(String src, CityGraph cities)
     {
         ArrayList<TableEntry> citiesOnPath = new ArrayList<>();
-        ArrayList<String> visitedCities = new ArrayList<>();
         ArrayList<String> unvisitedCities = new ArrayList<>();
 
+        // create distance table from city graph
         cities.getCities().forEach(city -> {
             if(city.equals(src)){ citiesOnPath.add(new TableEntry(city, 0,"")); }
             else { citiesOnPath.add(new TableEntry(city, Integer.MAX_VALUE,"")); }
@@ -67,6 +92,7 @@ public class ShortestPathFinder {
             unvisitedCities.add(city);
         });
 
+        // visit cities to fill the distance table
         while (!unvisitedCities.isEmpty())
         {
             String currentCity = findSmallestKnownDistance(citiesOnPath, unvisitedCities);
@@ -93,7 +119,6 @@ public class ShortestPathFinder {
                 }
             }
 
-            visitedCities.add(currentCity);
             unvisitedCities.remove(currentCity);
         }
 
@@ -121,6 +146,7 @@ public class ShortestPathFinder {
 
     private static void fillGraph(CityGraph cities)
     {
+        // create a city graph from a subset of all Dutch cities
         cities.addCity("Amsterdam");
         cities.addCity("Utrecht");
         cities.addCity("Groningen");
@@ -134,6 +160,7 @@ public class ShortestPathFinder {
         cities.addCity("Assen");
         cities.addCity("Middelburg");
 
+        // add calculated distances (Retrieved from : https://www.distancecalculator.net/country/netherlands)
         cities.addRoad("Amsterdam", "Utrecht", 53);
         cities.addRoad("Amsterdam", "Haarlem", 20);
         cities.addRoad("Amsterdam", "Lelystad", 58);
