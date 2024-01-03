@@ -1,91 +1,158 @@
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.Map;
+import java.time.temporal.JulianFields;
+import java.util.*;
 
 public class ShortestPathFinder {
     public static void main(String[] args) {
-        System.out.println("Welcome to find shortest path between Dutch cities.");
+        System.out.println("Welcome to find shortest path between Dutch cities. \n");
 
         // create a Graph to store cities and their relative distances
-        ArrayList<City> cities = new ArrayList<>();
+        CityGraph cities = new CityGraph();
 
         // fill the Graph with cities and their relative distances
         fillGraph(cities);
-        // cities.forEach(c -> System.out.println(c.getName()));
+        // cities.printCityGraph();
 
-        //TODO Implement Dijkstra's shortest path algorithm
+        //TODO Implement Dijkstra's shortest path
+        String source = "Amsterdam";
+        String destination = "Maastricht";
+        ArrayList<TableEntry> citiesOnPath = findShortestPath(source, cities);
+        printShortestPath(source, destination, citiesOnPath);
 
         //TODO Add welcome text to navigate users
     }
 
-    private static void fillGraph(ArrayList<City> cities)
+    private static void printShortestPath(String src, String dst, ArrayList<TableEntry> citiesOnPath)
     {
-        Map<String, Integer> neighbours = new HashMap<>();
+        System.out.println("The shortest path is:");
+        int totalDistance = 0;
+        String result = dst;
 
-        neighbours.put("Utrecht", 53);
-        neighbours.put("Haarlem", 20);
-        neighbours.put("Lelystad", 58);
-        cities.add(new City("Amsterdam", Integer.MAX_VALUE, neighbours));
-        neighbours.clear();
 
-        neighbours.put("Amsterdam", 53);
-        neighbours.put("Arnhem", 70);
-        neighbours.put("'s-Hertogenbosch", 56);
-        neighbours.put("'Zwolle", 91);
-        cities.add(new City("Utrecht", Integer.MAX_VALUE, neighbours));
-        neighbours.clear();
+        boolean isFound = false;
+        while (!isFound)
+        {
+            for (TableEntry te : citiesOnPath)
+            {
+                if (te.getCity().equals(dst))
+                {
+                    dst = te.getPreviousCity();
+                    result = te.getPreviousCity() + " -> " +  result;
 
-        neighbours.put("Assen", 28);
-        neighbours.put("Leeuwarden", 63);
-        cities.add(new City("Groningen", Integer.MAX_VALUE, neighbours));
-        neighbours.clear();
+                    if (totalDistance == 0)
+                        totalDistance = te.getShortestDistanceFromSource();
 
-        neighbours.put("Amsterdam", 20);
-        cities.add(new City("Haarlem", Integer.MAX_VALUE, neighbours));
-        neighbours.clear();
+                    if (dst.equals(src))
+                    {
+                        isFound = true;
+                    }
+                    break;
+                }
+            }
+        }
 
-        neighbours.put("Utrecht", 70);
-        neighbours.put("'s-Hertogenbosch", 63);
-        neighbours.put("Zwolle", 68);
-        cities.add(new City("Arnhem", Integer.MAX_VALUE, neighbours));
-        neighbours.clear();
+        System.out.println(result);
+        System.out.println("\nTotal distance is:\n" + totalDistance);
+    }
 
-        neighbours.put("Utrecht", 56);
-        neighbours.put("Arnhem", 63);
-        neighbours.put("Maastricht", 127);
-        neighbours.put("Middelburg", 150);
-        cities.add(new City("'s-Hertogenbosch", Integer.MAX_VALUE, neighbours));
-        neighbours.clear();
+    private static ArrayList<TableEntry> findShortestPath(String src, CityGraph cities)
+    {
+        ArrayList<TableEntry> citiesOnPath = new ArrayList<>();
+        ArrayList<String> visitedCities = new ArrayList<>();
+        ArrayList<String> unvisitedCities = new ArrayList<>();
 
-        neighbours.put("'s-Hertogenbosch", 127);
-        cities.add(new City("Maastricht", Integer.MAX_VALUE, neighbours));
-        neighbours.clear();
+        cities.getCities().forEach(city -> {
+            if(city.equals(src)){ citiesOnPath.add(new TableEntry(city, 0,"")); }
+            else { citiesOnPath.add(new TableEntry(city, Integer.MAX_VALUE,"")); }
 
-        neighbours.put("Utrecht", 91);
-        neighbours.put("Arnhem", 68);
-        neighbours.put("Leeuwarden", 96);
-        neighbours.put("Lelystad", 53);
-        neighbours.put("Assen", 78);
-        cities.add(new City("Zwolle", Integer.MAX_VALUE, neighbours));
-        neighbours.clear();
+            unvisitedCities.add(city);
+        });
 
-        neighbours.put("Groningen", 63);
-        neighbours.put("Zwolle", 96);
-        cities.add(new City("Leeuwarden", Integer.MAX_VALUE, neighbours));
-        neighbours.clear();
+        while (!unvisitedCities.isEmpty())
+        {
+            String currentCity = findSmallestKnownDistance(citiesOnPath, unvisitedCities);
+            for (Road neighbour : cities.getRoads(currentCity))
+            {
+                if(unvisitedCities.contains(neighbour.targetCity))
+                {
+                    TableEntry currentCityRow = citiesOnPath
+                            .stream()
+                            .filter(te -> te.getCity().equals(currentCity))
+                            .toList().get(0);
 
-        neighbours.put("Amsterdam", 58);
-        neighbours.put("Zwolle", 53);
-        cities.add(new City("Lelystad", Integer.MAX_VALUE, neighbours));
-        neighbours.clear();
+                    TableEntry neighbourRow = citiesOnPath
+                            .stream()
+                            .filter(te -> te.getCity().equals(neighbour.targetCity))
+                            .toList().get(0);
 
-        neighbours.put("Groningen", 28);
-        neighbours.put("Zwolle", 78);
-        cities.add(new City("Assen", Integer.MAX_VALUE, neighbours));
-        neighbours.clear();
+                    int distance = currentCityRow.getShortestDistanceFromSource() + neighbour.distance;
+                    if(distance < neighbourRow.getShortestDistanceFromSource())
+                    {
+                        neighbourRow.setShortestDistanceFromSource(distance);
+                        neighbourRow.setPreviousCity(currentCity);
+                    }
+                }
+            }
 
-        neighbours.put("'s-Hertogenbosch", 150);
-        cities.add(new City("Middelburg", Integer.MAX_VALUE, neighbours));
-        neighbours.clear();
+            visitedCities.add(currentCity);
+            unvisitedCities.remove(currentCity);
+        }
+
+        return citiesOnPath;
+    }
+
+    private static String findSmallestKnownDistance(ArrayList<TableEntry> citiesOnPath, ArrayList<String> unvisitedCities)
+    {
+        int smallestKnownDistance = Integer.MAX_VALUE;
+
+        for (TableEntry tableEntry : citiesOnPath)
+            if (tableEntry.getShortestDistanceFromSource() < smallestKnownDistance)
+                if (unvisitedCities.contains(tableEntry.getCity()))
+                    smallestKnownDistance = tableEntry.getShortestDistanceFromSource();
+
+        String closestCity = "";
+
+        for (TableEntry tableEntry : citiesOnPath)
+            if (tableEntry.getShortestDistanceFromSource() == smallestKnownDistance)
+                if (unvisitedCities.contains(tableEntry.getCity()))
+                    closestCity = tableEntry.getCity();
+
+        return closestCity;
+    }
+
+    private static void fillGraph(CityGraph cities)
+    {
+        cities.addCity("Amsterdam");
+        cities.addCity("Utrecht");
+        cities.addCity("Groningen");
+        cities.addCity("Haarlem");
+        cities.addCity("Arnhem");
+        cities.addCity("'s-Hertogenbosch");
+        cities.addCity("Maastricht");
+        cities.addCity("Zwolle");
+        cities.addCity("Leeuwarden");
+        cities.addCity("Lelystad");
+        cities.addCity("Assen");
+        cities.addCity("Middelburg");
+
+        cities.addRoad("Amsterdam", "Utrecht", 53);
+        cities.addRoad("Amsterdam", "Haarlem", 20);
+        cities.addRoad("Amsterdam", "Lelystad", 58);
+
+        cities.addRoad("Utrecht", "Arnhem", 70);
+        cities.addRoad("Utrecht", "'s-Hertogenbosch", 56);
+        cities.addRoad("Utrecht", "Zwolle", 91);
+
+        cities.addRoad("Groningen", "Assen", 28);
+        cities.addRoad("Groningen", "Leeuwarden", 63);
+
+        cities.addRoad("Arnhem", "'s-Hertogenbosch", 63);
+        cities.addRoad("Arnhem", "Zwolle", 68);
+
+        cities.addRoad("'s-Hertogenbosch", "Maastricht", 127);
+        cities.addRoad("'s-Hertogenbosch", "Middelburg", 150);
+
+        cities.addRoad("Zwolle", "Leeuwarden", 96);
+        cities.addRoad("Zwolle", "Lelystad", 53);
+        cities.addRoad("Zwolle", "Assen", 78);
     }
 }
